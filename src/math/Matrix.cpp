@@ -1,5 +1,5 @@
 #include "Matrix.h"
-#include <SDL.h>
+#include <cmath>
 
 Matrix::Matrix(Matrix & Mat)
 {
@@ -97,30 +97,30 @@ Matrix & Matrix::InitTranslation(float x, float y, float z)
 Matrix & Matrix::InitRotation_x(float Angle)
 {
 	Clear();
-	MatrixData[5] = SDL_cosf(Angle);
-	MatrixData[6] = -SDL_sinf(Angle);
-	MatrixData[9] = SDL_sinf(Angle);
-	MatrixData[10] = SDL_cosf(Angle);
+	MatrixData[5] = std::cos(Angle);
+	MatrixData[6] = -std::sin(Angle);
+	MatrixData[9] = std::sin(Angle);
+	MatrixData[10] = std::cos(Angle);
 	return *this;
 }
 
 Matrix & Matrix::InitRotation_y(float Angle)
 {
 	Clear();
-	MatrixData[0] = SDL_cosf(Angle);
-	MatrixData[2] = SDL_sinf(Angle);
-	MatrixData[8] = -SDL_sinf(Angle);
-	MatrixData[10] = SDL_cosf(Angle);
+	MatrixData[0] = std::cos(Angle);
+	MatrixData[2] = std::sin(Angle);
+	MatrixData[8] = -std::sin(Angle);
+	MatrixData[10] = std::cos(Angle);
 	return *this;
 }
 
 Matrix & Matrix::InitRotation_z(float Angle)
 {
 	Clear();
-	MatrixData[0] = SDL_cosf(Angle);
-	MatrixData[1] = SDL_sinf(Angle);
-	MatrixData[4] = -SDL_sinf(Angle);
-	MatrixData[5] = SDL_cosf(Angle);
+	MatrixData[0] = std::cos(Angle);
+	MatrixData[1] = std::sin(Angle);
+	MatrixData[4] = -std::sin(Angle);
+	MatrixData[5] = std::cos(Angle);
 	return *this;
 }
 
@@ -148,7 +148,7 @@ Matrix & Matrix::InitFrustum(float NearPlane, float FarPlane, float Left, float 
 
 Matrix & Matrix::InitFrustum(float NearPlane, float FarPlane, float Fov, float AspectRatio)
 {
-	float Top = SDL_tanf(Fov/2.0f)*NearPlane;
+	float Top = std::tan(Fov/2.0f)*NearPlane;
 	float Right = Top*AspectRatio;
 	InitFrustum(NearPlane, FarPlane, -Right, Right, -Top, Top);
 	return *this;

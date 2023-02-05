@@ -4,13 +4,13 @@
 #include <iostream>
 #include <cmath>
 #include <cctype>
-#include <SDL.h>
 #include <3rdparty/opengl/gl.h>
+#include <SFML/Window.hpp>
 #include <system/FileWork.h>
 
 const float pi = 3.141592f;
-const float speed = 0.05f;
-const float rotationSpeed = 0.0008f;
+const float speed = 0.005f;
+const float rotationSpeed = 0.008f;
 struct Camera
 {
 	float x;
@@ -93,28 +93,20 @@ static bool FetchRenderingParameters(uint16_t & RenderWidth, uint16_t & RenderHe
 
 bool HaveAnyIntersection(const Camera & CameraPosition, const Camera & CameraPreviousPosition);
 
-int main(int argc, char * args[])
+int main()
 {
-	SDL_Window * Window = nullptr;
-	SDL_GLContext glContext;
-	SDL_Event Event;
+	sf::Window Window;
+	sf::Event Event;
 	GLuint RayTracerProgram;
 	GLuint ObjectsBuffer;
 	GLuint SSAAFBO, MainFBOTexture;
 	GLuint TempFBO, TempFBOTexture;
+	GLuint VAO;
 	bool Processing = true;
 	double Time = 0.0;
 	float xMovement = 0.0, yMovement = 0.0, zMovement = 0.0;
 	Camera CameraPosition = { 0.0f, 0.0f, 0.0f, 0.0f, 0.0f };
 	Camera TemporaryCameraPosition = { 0.0f, 0.0f, 0.0f, 0.0f, 0.0f };
-
-	SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
-	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4);
-	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 5);
-
-	SDL_Init(SDL_INIT_VIDEO | SDL_INIT_JOYSTICK);
-
-	uint32_t Flags = SDL_WINDOW_OPENGL;
 
 	uint16_t RenderWidth = 800;
 	uint16_t RenderHeight = 600;
@@ -127,32 +119,40 @@ int main(int argc, char * args[])
 	}
 
 	float AspectRatio = static_cast<float>(RenderWidth)/RenderHeight;
+	sf::VideoMode VideoMode;
+	VideoMode.width = RenderWidth;
+	VideoMode.height = RenderHeight;
+	VideoMode.bitsPerPixel = 32;
+	sf::Uint32 WindowStyle = sf::Style::Default;
 	uint16_t WindowWidth = RenderWidth;
 	uint16_t WindowHeight = RenderHeight;
 	if(FullScreen)
 	{
-		SDL_Rect DisplayRect;
-		SDL_GetDisplayBounds(0, &DisplayRect);
-		WindowWidth = DisplayRect.w;
-		WindowHeight = DisplayRect.h;
-		Flags |= SDL_WINDOW_FULLSCREEN;
+		VideoMode = sf::VideoMode::getFullscreenModes()[0];
+		WindowWidth = VideoMode.width;
+		WindowHeight = VideoMode.height;
+		WindowStyle = sf::Style::Fullscreen;
 	}
 
-	Window = SDL_CreateWindow("RayCasting", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, WindowWidth, WindowHeight, Flags);
+	sf::ContextSettings ContextSettings;
+	ContextSettings.depthBits = 0;
+	ContextSettings.stencilBits = 0;
+	ContextSettings.antialiasingLevel = 0;
+	ContextSettings.majorVersion = 4;
+	ContextSettings.minorVersion = 5;
+	ContextSettings.attributeFlags = sf::ContextSettings::Attribute::Core;
 
-	SDL_SetRelativeMouseMode(SDL_TRUE);
+	Window.create(VideoMode, "RayCasting", WindowStyle, ContextSettings);
+	Window.setMouseCursorVisible(false);
+	Window.setMouseCursorGrabbed(true);
 
-	glContext = SDL_GL_CreateContext(Window);
-
-	/*if(SDL_GL_SetSwapInterval(-1) == -1)
-		SDL_GL_SetSwapInterval(1);*/
+	int WindowCenterX = WindowWidth/2;
+	int WindowCenterY = WindowHeight/2;
+	sf::Mouse::setPosition({WindowCenterX, WindowCenterY}, Window);
 
 	RayTracerProgram = InitRayTracer();
 	if(RayTracerProgram == 0)
 	{
-		SDL_GL_DeleteContext(glContext);
-		SDL_DestroyWindow(Window);
-		SDL_Quit();
 		system("pause");
 		return -1;
 	}
@@ -162,6 +162,7 @@ int main(int argc, char * args[])
 	glGenFramebuffers(1, &SSAAFBO);
 	glBindFramebuffer(GL_FRAMEBUFFER, SSAAFBO);
 
+	glGenTextures(1, &MainFBOTexture);
 	glBindTexture(GL_TEXTURE_2D, MainFBOTexture);
 	glTexStorage2D(GL_TEXTURE_2D, 1, GL_RGBA8, RenderWidth*SamplesCount, RenderHeight*SamplesCount);
 	glTextureParameteri(MainFBOTexture, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
@@ -172,25 +173,28 @@ int main(int argc, char * args[])
 	glGenFramebuffers(1, &TempFBO);
 	glBindFramebuffer(GL_FRAMEBUFFER, TempFBO);
 
+	glGenTextures(1, &TempFBOTexture);
 	glBindTexture(GL_TEXTURE_2D, TempFBOTexture);
 	glTexStorage2D(GL_TEXTURE_2D, 1, GL_RGBA8, RenderWidth, RenderHeight);
 	glTextureParameteri(TempFBOTexture, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	glTextureParameteri(TempFBOTexture, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, TempFBOTexture, 0);
 
+	glGenVertexArrays(1, &VAO);
+
 	while(Processing)
 	{
-		while(SDL_PollEvent(&Event))
+		while(Window.pollEvent(Event))
 			switch(Event.type)
 			{
-			case SDL_KEYUP:
-				switch(Event.key.keysym.sym)
+			case sf::Event::EventType::KeyReleased:
+				switch(Event.key.code)
 				{
-				case SDLK_ESCAPE:
+				case sf::Keyboard::Key::Escape:
 					Processing = false;
 					break;
 
-				case SDLK_PRINTSCREEN:
+				case sf::Keyboard::Key::F12:
 					{
 						glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
 						glReadBuffer(GL_FRONT);
@@ -202,55 +206,65 @@ int main(int argc, char * args[])
 					}
 					break;
 
-				case SDLK_d:
-				case SDLK_a:
+				case sf::Keyboard::Key::D:
+				case sf::Keyboard::Key::A:
 					xMovement = 0.0f;
 					break;
-				case SDLK_SPACE:
-				case SDLK_c:
+				case sf::Keyboard::Key::Space:
+				case sf::Keyboard::Key::C:
 					yMovement = 0.0f;
 					break;
-				case SDLK_w:
-				case SDLK_s:
+				case sf::Keyboard::Key::W:
+				case sf::Keyboard::Key::S:
 					zMovement = 0.0f;
 					break;
+
+				default:
+					break;
 				}
 				break;
 
-			case SDL_KEYDOWN:
-				switch(Event.key.keysym.sym)
+			case sf::Event::EventType::KeyPressed:
+				switch(Event.key.code)
 				{
-				case SDLK_d:
+				case sf::Keyboard::Key::D:
 					xMovement = 1.0f;
 					break;
-				case SDLK_a:
+				case sf::Keyboard::Key::A:
 					xMovement = -1.0f;
 					break;
-				case SDLK_SPACE:
+				case sf::Keyboard::Key::Space:
 					yMovement = 1.0f;
 					break;
-				case SDLK_c:
+				case sf::Keyboard::Key::C:
 					yMovement = -1.0f;
 					break;
-				case SDLK_w:
+				case sf::Keyboard::Key::W:
 					zMovement = 1.0f;
 					break;
-				case SDLK_s:
+				case sf::Keyboard::Key::S:
 					zMovement = -1.0f;
+					break;
+
+				default:
 					break;
 				}
 				break;
 
-			case SDL_MOUSEMOTION:
-				CameraPosition.yAngle -= Event.motion.xrel*rotationSpeed;
-				if(std::abs(CameraPosition.xAngle - Event.motion.yrel*rotationSpeed) < 0.5*pi)
-					CameraPosition.xAngle -= Event.motion.yrel*rotationSpeed;
-				break;
-
-			case SDL_QUIT:
+			case sf::Event::EventType::Closed:
 				Processing = false;
 				break;
+
+			default:
+				break;
 			}
+
+		sf::Vector2i MousePosition = sf::Mouse::getPosition(Window);
+		CameraPosition.yAngle -= (MousePosition.x - WindowCenterX)*rotationSpeed;
+		if(std::abs(CameraPosition.xAngle - (WindowCenterY - MousePosition.y)*rotationSpeed) < 0.5*pi)
+			CameraPosition.xAngle -= (MousePosition.y - WindowCenterY)*rotationSpeed;
+		sf::Mouse::setPosition({WindowCenterX, WindowCenterY}, Window);
+
 /*
 		CameraPosition.x += speed*(xMovement*std::cos(CameraPosition.yAngle) + yMovement*std::sin(CameraPosition.xAngle)*std::sin(CameraPosition.yAngle) - zMovement*std::cos(CameraPosition.xAngle)*std::sin(CameraPosition.yAngle));
 		CameraPosition.y += speed*(yMovement*std::cos(CameraPosition.xAngle) + zMovement*std::sin(CameraPosition.xAngle));
@@ -268,6 +282,8 @@ int main(int argc, char * args[])
 
 		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, SSAAFBO);
 
+		glBindVertexArray(VAO);
+
 		glUseProgram(RayTracerProgram);
 		glUniform1f(0, AspectRatio);
 		glUniform1f(1, Time);
@@ -282,10 +298,11 @@ int main(int argc, char * args[])
 		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
 		glBlitFramebuffer(0, 0, RenderWidth, RenderHeight, 0, 0, WindowWidth, WindowHeight, GL_COLOR_BUFFER_BIT, GL_NEAREST);
 
-		SDL_GL_SwapWindow(Window);
-		//SDL_Delay(10);
+		Window.display();
 		Time += 0.001;
 	}
+
+	glDeleteVertexArrays(1, &VAO);
 
 	glDeleteFramebuffers(1, &TempFBO);
 	glDeleteTextures(1, &TempFBOTexture);
@@ -296,10 +313,6 @@ int main(int argc, char * args[])
 	glDeleteProgram(RayTracerProgram);
 	glDeleteBuffers(1, &ObjectsBuffer);
 
-	SDL_GL_DeleteContext(glContext);
-	SDL_DestroyWindow(Window);
-	SDL_Quit();
-
 	return 0;
 }
 
@@ -307,8 +320,8 @@ static GLuint InitRayTracer()
 {
 	GLuint VertexShader, FragmentShader, Program;
 
-	VertexShader = LoadShader("RayTracer.vs", GL_VERTEX_SHADER);
-	FragmentShader = LoadShader("RayTracer.fs", GL_FRAGMENT_SHADER);
+	VertexShader = LoadShader("shaders/RayTracer.vs", GL_VERTEX_SHADER);
+	FragmentShader = LoadShader("shaders/RayTracer.fs", GL_FRAGMENT_SHADER);
 	if(VertexShader == 0 || FragmentShader == 0)
 		return 0;
 

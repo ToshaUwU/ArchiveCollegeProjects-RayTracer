@@ -6,3 +6,6 @@ build/
 
 # Build artifacts
 bin/
+
+# screenshots
+/image.bmp
