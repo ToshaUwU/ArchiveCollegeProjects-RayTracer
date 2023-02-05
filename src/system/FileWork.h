@@ -1,7 +1,7 @@
 #ifndef FILEWORK_H_INCLUDED
 #define FILEWORK_H_INCLUDED
 
-#include <GL/modgl.h>
+#include <3rdparty/opengl/gl.h>
 
 void SaveImage(const char * FileName, uint16_t ImageWidth, uint16_t ImageHeight, uint8_t * PixelData);
 

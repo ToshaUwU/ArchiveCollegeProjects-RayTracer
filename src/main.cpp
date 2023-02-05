@@ -5,8 +5,8 @@
 #include <cmath>
 #include <cctype>
 #include <SDL.h>
-#include "OpenGL/OpenGL.h"
-#include "FileWork.h"
+#include <3rdparty/opengl/gl.h>
+#include <system/FileWork.h>
 
 const float pi = 3.141592f;
 const float speed = 0.05f;

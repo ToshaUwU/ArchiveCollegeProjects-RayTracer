@@ -30,8 +30,8 @@ endif()
 #find_package(SFML 2.5 COMPONENTS window system REQUIRED)
 #target_link_libraries(raytracer sfml-window sfml-system)
 
-#add_subdirectory("${THIRD_PARTY_DIRECTORY}/opengl")
-#target_link_libraries(raytracer opengl)
+add_subdirectory("${THIRD_PARTY_DIRECTORY}/opengl")
+target_link_libraries(raytracer opengl)
 
 target_include_directories(raytracer PRIVATE ${SOURCES_DIRECTORY})
 
